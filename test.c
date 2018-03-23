@@ -1,4 +1,6 @@
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <nfc/nfc.h>
 
 nfc_target nt;
@@ -7,12 +9,15 @@ nfc_device *pnd;
 
 #define UID_SIZE 7
 #define BIN_SIZE 540
-#define KEY_SIZE 160
 
 uint8_t uid[UID_SIZE];
 uint8_t decryptedBin[BIN_SIZE];
 uint8_t encryptedBin[BIN_SIZE];
-uint8_t key[KEY_SIZE];
+
+int writePipe[2] = {-1, -1};
+int readPipe[2] = {-1, -1};
+
+#define COMMAND_SIZE 1000
 
 static void print_hex(const uint8_t *pbtData, const size_t szBytes)
 {
@@ -66,11 +71,6 @@ void readDecryptedBin(const char *path) {
   readFileIntoBuffer(path, decryptedBin, BIN_SIZE);
 }
 
-void readKey(const char *path) {
-  printf("Reading key file\n");
-  readFileIntoBuffer(path, key, KEY_SIZE);
-}
-
 void readTag() {
   printf("***Scan tag***\n");
   const nfc_modulation nmMifare = {
@@ -94,8 +94,55 @@ void readTag() {
   }
 }
 
-void encryptBin() {
+void replaceUIDInBin() {
 
+}
+
+void encryptBin(const char* keyPath) {
+  if (pipe(writePipe) < 0) {
+    fprintf(stderr, "Could not open write pipe\n");
+    exit(1);
+  }
+
+  if (pipe(readPipe) < 0) {
+    fprintf(stderr, "Could not open read pipe\n");
+    exit(1);
+  }
+
+  int savedStdin = dup(0);
+  if (dup2(writePipe[0], 0) < 0) {
+    fprintf(stderr, "Could not redirect stdin\n");
+    exit(1);
+  }
+
+  int savedStdout = dup(1);
+  if (dup2(readPipe[1], 1) < 0) {
+    fprintf(stderr, "Could not redirect stdout\n");
+    exit(1);
+  }
+
+  int pipeSize;
+  if (BIN_SIZE != (pipeSize = write(writePipe[1], decryptedBin, BIN_SIZE))) {
+    fprintf(stderr, "Wrote incorrect size to pipe: %d\n", pipeSize);
+    perror("write");
+    exit(1);
+  }
+
+  const char *staticCommand = "./amiitool/amiitool -e -k ";
+  char command[COMMAND_SIZE + strlen(staticCommand)];
+
+  if (strlen(keyPath) >= COMMAND_SIZE) {
+    fprintf(stderr, "Key path too big\n");
+    exit(1);
+  }
+
+  sprintf(command, "%s%s", staticCommand, keyPath);
+  system(command);
+
+  if (BIN_SIZE != (pipeSize = read(readPipe[0], encryptedBin, BIN_SIZE))) {
+    fprintf(stderr, "Read incorrect size from pipe: %d\n", pipeSize);
+    exit(1);
+  }
 }
 
 void printUsage() {
@@ -110,8 +157,8 @@ int main(int argc, char** argv) {
   }
 
   readDecryptedBin(argv[2]);
-  readKey(argv[1]);
   initializeNFC();
   readTag();
-  encryptBin();
+  replaceUIDInBin();
+  encryptBin(argv[1]);
 }
