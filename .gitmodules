@@ -1,0 +1,3 @@
+[submodule "amiitool"]
+	path = amiitool
+	url = https://github.com/socram8888/amiitool.git
