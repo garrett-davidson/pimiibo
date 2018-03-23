@@ -9,10 +9,17 @@ nfc_device *pnd;
 
 #define UID_SIZE 7
 #define BIN_SIZE 540
+#define PASSWORD_SIZE 4
+
+#define UID_OFFSET 468
+#define PASSWORD_OFFSET 532
 
 uint8_t uid[UID_SIZE];
 uint8_t decryptedBin[BIN_SIZE];
 uint8_t encryptedBin[BIN_SIZE];
+uint8_t bcc[2];
+uint8_t password[PASSWORD_SIZE] = {0, 0, 0, 0};
+
 
 int writePipe[2] = {-1, -1};
 int readPipe[2] = {-1, -1};
@@ -27,6 +34,19 @@ static void print_hex(const uint8_t *pbtData, const size_t szBytes)
     printf("%02x  ", pbtData[szPos]);
   }
   printf("\n");
+}
+
+void writeBuffer(const char* path, uint8_t *buffer, size_t size) {
+  FILE *file = fopen(path, "w");
+  if (!file) {
+    fprintf(stderr, "Could not open %s\n", path);
+    exit(1);
+  }
+
+  if (size != fwrite(buffer, 1, size, file)) {
+    fprintf(stderr, "Could not write to file\n");
+    exit(1);
+  }
 }
 
 void initializeNFC() {
@@ -95,7 +115,52 @@ void readTag() {
 }
 
 void replaceUIDInBin() {
+  bcc[0] = 0x88 ^ uid[0] ^ uid[1] ^ uid[2];
+  bcc[1] = uid[3] ^ uid[4] ^ uid[5] ^ uid[6];
 
+  int i;
+  for (i = 0; i < 3; i++) {
+    decryptedBin[UID_OFFSET + i] = uid[i];
+  }
+
+  decryptedBin[UID_OFFSET + i++] = bcc[0];
+
+  for (; i < 8; i++) {
+    decryptedBin[UID_OFFSET + i] = uid[i - 1];
+  }
+}
+
+void replacePassword() {
+  password[0] = 0xAA ^ uid[1] ^ uid[3];
+  password[1] = 0x55 ^ uid[2] ^ uid[4];
+  password[2] = 0xAA ^ uid[3] ^ uid[5];
+  password[3] = 0x55 ^ uid[4] ^ uid[6];
+
+  for (int i = 0; i < PASSWORD_SIZE; i++) {
+    decryptedBin[PASSWORD_OFFSET + i] = password[i];
+  }
+}
+
+void setDefaults() {
+  decryptedBin[0] = bcc[1];
+
+  // All of these are magic values
+  decryptedBin[536] = 0x80;
+  decryptedBin[537] = 0x80;
+
+  decryptedBin[520] = 0;
+  decryptedBin[521] = 0;
+  decryptedBin[522] = 0;
+
+  decryptedBin[2] = 0;
+  decryptedBin[3] = 0;
+}
+
+void updateForUID() {
+  // Credit: https://gist.githubusercontent.com/ShoGinn/d27a726296f4370bbff0f9b1a7847b85/raw/aeb425e8b1708e1c61f78c3e861dad03c20ca8ab/Arduino_amiibo_tool.bash
+  replaceUIDInBin();
+  replacePassword();
+  setDefaults();
 }
 
 void encryptBin(const char* keyPath) {
@@ -159,6 +224,7 @@ int main(int argc, char** argv) {
   readDecryptedBin(argv[2]);
   initializeNFC();
   readTag();
-  replaceUIDInBin();
+  updateForUID();
   encryptBin(argv[1]);
+  writeBuffer("test.bin", decryptedBin, BIN_SIZE);
 }
