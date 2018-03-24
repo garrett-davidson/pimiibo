@@ -15,16 +15,26 @@ nfc_device *pnd;
 #define UID_OFFSET 468
 #define PASSWORD_OFFSET 532
 
+#define PAGE_COUNT 135
+
 uint8_t uid[UID_SIZE];
 uint8_t decryptedBin[BIN_SIZE];
 uint8_t encryptedBin[BIN_SIZE];
 uint8_t bcc[2];
 uint8_t password[PASSWORD_SIZE] = {0, 0, 0, 0};
 
+const uint8_t dynamicLockBytes[4] = { 0x01, 0x00, 0x0f, 0xbd };
+const uint8_t staticLockBytes[4] = { 0x00, 0x00, 0x0F, 0xE0 };
+
 int writePipe[2] = {-1, -1};
 int readPipe[2] = {-1, -1};
 int savedStdin = -1;
 int savedStdout = -1;
+
+const nfc_modulation nmMifare = {
+  .nmt = NMT_ISO14443A,
+  .nbr = NBR_106,
+};
 
 #define COMMAND_SIZE 1000
 
@@ -170,10 +180,6 @@ void decryptBin(const char* keyPath) {
 
 void readTag() {
   printf("***Scan tag***\n");
-  const nfc_modulation nmMifare = {
-    .nmt = NMT_ISO14443A,
-    .nbr = NBR_106,
-  };
 
   if (nfc_initiator_select_passive_target(pnd, nmMifare, NULL, 0, &nt) > 0) {
     printf("Read UID: ");
@@ -255,6 +261,60 @@ void encryptBin(const char* keyPath) {
   printf("Encrypted\n\n");
 }
 
+void writePage(uint8_t page, const uint8_t *pageData) {
+  printf("Writing to %d: %02x %02x %02x %02x...",
+         page, pageData[0], pageData[1], pageData[2], pageData[3]);
+
+  uint8_t sendData[6] = {
+    0xa2, page, pageData[0], pageData[1], pageData[2], pageData[3]
+  };
+
+  uint8_t response[6];
+
+  int responseSize = nfc_initiator_transceive_bytes(pnd, sendData, 6, response, 6, 0);
+  if (responseSize == 1) {
+    fprintf(stderr, "Failed\n");
+    fprintf(stderr, "Received 1");
+    exit(1);
+  }
+
+  if (response[0] == 0x0a) {
+    fprintf(stderr, "Failed\n");
+    fprintf(stderr, "Received NAK\n");
+    exit(1);
+  }
+
+  printf("Done\n");
+}
+
+void writeData() {
+  printf("Writing encrypted bin:");
+  for (uint8_t i = 0; i < PAGE_COUNT; i++) {
+    writePage(i, encryptedBin + (i * 4));
+  }
+  printf("Done\n");
+}
+
+void writeDynamicLockBytes() {
+  printf("Writing dynamic lock bytes\n");
+  writePage(130, dynamicLockBytes);
+  printf("Done\n");
+}
+
+void writeStaticLockBytes() {
+  printf("Writing static lock bytes\n");
+  writePage(2, staticLockBytes);
+  printf("Done\n");
+}
+
+void writeTag() {
+  printf("Writing tag:\n");
+  writeData();
+  writeDynamicLockBytes();
+  writeStaticLockBytes();
+  printf("Finished writing tag\n");
+}
+
 void printUsage() {
   printf("pimiibo keyfile binfile\n");
 }
@@ -272,5 +332,5 @@ int main(int argc, char** argv) {
   readTag();
   updateForUID();
   encryptBin(argv[1]);
-  writeBuffer("test.bin", encryptedBin, BIN_SIZE);
+  writeTag();
 }
