@@ -88,9 +88,84 @@ void readFileIntoBuffer(const char *path, uint8_t *buffer, size_t size) {
 
 }
 
-void readDecryptedBin(const char *path) {
-  printf("Reading bin file\n");
-  readFileIntoBuffer(path, decryptedBin, BIN_SIZE);
+void redirectIO() {
+  if (pipe(writePipe) < 0) {
+    fprintf(stderr, "Could not open write pipe\n");
+    exit(1);
+  }
+
+  if (pipe(readPipe) < 0) {
+    fprintf(stderr, "Could not open read pipe\n");
+    exit(1);
+  }
+
+  savedStdin = dup(0);
+  if (dup2(writePipe[0], 0) < 0) {
+    fprintf(stderr, "Could not redirect stdin\n");
+    exit(1);
+  }
+
+  savedStdout = dup(1);
+  if (dup2(readPipe[1], 1) < 0) {
+    fprintf(stderr, "Could not redirect stdout\n");
+    exit(1);
+  }
+}
+
+void resetIO() {
+  if (dup2(savedStdin, 0) < 0) {
+    fprintf(stderr, "Could not reset stdin\n");
+    exit(1);
+  }
+
+  if (dup2(savedStdout, 1) < 0) {
+    fprintf(stderr, "Could not reset stdout\n");
+    exit(1);
+  }
+}
+
+void pipeToAmiitool(const char *args, const char* keyPath, uint8_t *inputBuffer, uint8_t *outputBuffer) {
+  printf("Sending bin to amiitool...");
+
+  redirectIO();
+
+  int pipeSize;
+  if (BIN_SIZE != (pipeSize = write(writePipe[1], inputBuffer, BIN_SIZE))) {
+    fprintf(stderr, "Wrote incorrect size to pipe: %d\n", pipeSize);
+    perror("write");
+    exit(1);
+  }
+
+  const char *staticCommand = "./amiitool/amiitool %s -k %s";
+  char command[COMMAND_SIZE + strlen(staticCommand)];
+
+  if (strlen(keyPath) >= COMMAND_SIZE) {
+    fprintf(stderr, "Key path too big\n");
+    exit(1);
+  }
+
+  sprintf(command, staticCommand, args, keyPath);
+  system(command);
+
+  if (BIN_SIZE != (pipeSize = read(readPipe[0], outputBuffer, BIN_SIZE))) {
+    fprintf(stderr, "Read incorrect size from pipe: %d\n", pipeSize);
+    exit(1);
+  }
+
+  resetIO();
+
+  printf("Done\n");
+}
+
+void readEncryptedBin(const char *path) {
+  printf("Reading encrypted bin file\n");
+  readFileIntoBuffer(path, encryptedBin, BIN_SIZE);
+}
+
+void decryptBin(const char* keyPath) {
+  printf("\nDecrypting bin\n");
+  pipeToAmiitool("-d", keyPath, encryptedBin, decryptedBin);
+  printf("Decrypted\n");
 }
 
 void readTag() {
@@ -170,79 +245,18 @@ void updateForUID() {
   replaceUIDInBin();
   replacePassword();
   setDefaults();
-}
 
-void redirectIO() {
-  if (pipe(writePipe) < 0) {
-    fprintf(stderr, "Could not open write pipe\n");
-    exit(1);
-  }
-
-  if (pipe(readPipe) < 0) {
-    fprintf(stderr, "Could not open read pipe\n");
-    exit(1);
-  }
-
-  savedStdin = dup(0);
-  if (dup2(writePipe[0], 0) < 0) {
-    fprintf(stderr, "Could not redirect stdin\n");
-    exit(1);
-  }
-
-  savedStdout = dup(1);
-  if (dup2(readPipe[1], 1) < 0) {
-    fprintf(stderr, "Could not redirect stdout\n");
-    exit(1);
-  }
-}
-
-void resetIO() {
-  if (dup2(savedStdin, 0) < 0) {
-    fprintf(stderr, "Could not reset stdin\n");
-    exit(1);
-  }
-
-  if (dup2(savedStdout, 1) < 0) {
-    fprintf(stderr, "Could not reset stdout\n");
-    exit(1);
-  }
+  printf("Finished updating bin\n\n");
 }
 
 void encryptBin(const char* keyPath) {
-  printf("\nEncrypting bin with amiitool...");
-
-  redirectIO();
-
-  int pipeSize;
-  if (BIN_SIZE != (pipeSize = write(writePipe[1], decryptedBin, BIN_SIZE))) {
-    fprintf(stderr, "Wrote incorrect size to pipe: %d\n", pipeSize);
-    perror("write");
-    exit(1);
-  }
-
-  const char *staticCommand = "./amiitool/amiitool -e -k ";
-  char command[COMMAND_SIZE + strlen(staticCommand)];
-
-  if (strlen(keyPath) >= COMMAND_SIZE) {
-    fprintf(stderr, "Key path too big\n");
-    exit(1);
-  }
-
-  sprintf(command, "%s%s", staticCommand, keyPath);
-  system(command);
-
-  if (BIN_SIZE != (pipeSize = read(readPipe[0], encryptedBin, BIN_SIZE))) {
-    fprintf(stderr, "Read incorrect size from pipe: %d\n", pipeSize);
-    exit(1);
-  }
-
-  resetIO();
-
-  printf("Done\n");
+  printf("Encrypting\n");
+  pipeToAmiitool("-e", keyPath, decryptedBin, encryptedBin);
+  printf("Encrypted\n\n");
 }
 
 void printUsage() {
-
+  printf("pimiibo keyfile binfile\n");
 }
 
 int main(int argc, char** argv) {
@@ -252,7 +266,8 @@ int main(int argc, char** argv) {
     exit(1);
   }
 
-  readDecryptedBin(argv[2]);
+  readEncryptedBin(argv[2]);
+  decryptBin(argv[1]);
   initializeNFC();
   readTag();
   updateForUID();
