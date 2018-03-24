@@ -17,6 +17,8 @@ nfc_device *pnd;
 
 #define PAGE_COUNT 135
 
+#define WRITE_COMMAND 0xa2
+
 uint8_t uid[UID_SIZE];
 uint8_t decryptedBin[BIN_SIZE];
 uint8_t encryptedBin[BIN_SIZE];
@@ -266,30 +268,24 @@ void writePage(uint8_t page, const uint8_t *pageData) {
          page, pageData[0], pageData[1], pageData[2], pageData[3]);
 
   uint8_t sendData[6] = {
-    0xa2, page, pageData[0], pageData[1], pageData[2], pageData[3]
+    WRITE_COMMAND, page, pageData[0], pageData[1], pageData[2], pageData[3]
   };
 
-  uint8_t response[6];
+  int responseCode = nfc_initiator_transceive_bytes(pnd, sendData, 6, NULL, 0, 0);
 
-  int responseSize = nfc_initiator_transceive_bytes(pnd, sendData, 6, response, 6, 0);
-  if (responseSize == 1) {
-    fprintf(stderr, "Failed\n");
-    fprintf(stderr, "Received 1");
+  if (responseCode == 0) {
+    printf("Done\n");
+  } else {
+    printf("Failed\n");
+    fprintf(stderr, "Failed to write to tag\n");
+    nfc_perror(pnd, "Write");
     exit(1);
   }
-
-  if (response[0] == 0x0a) {
-    fprintf(stderr, "Failed\n");
-    fprintf(stderr, "Received NAK\n");
-    exit(1);
-  }
-
-  printf("Done\n");
 }
 
 void writeData() {
-  printf("Writing encrypted bin:");
-  for (uint8_t i = 0; i < PAGE_COUNT; i++) {
+  printf("Writing encrypted bin:\n");
+  for (uint8_t i = 3; i < PAGE_COUNT; i++) {
     writePage(i, encryptedBin + (i * 4));
   }
   printf("Done\n");
