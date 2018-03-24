@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -20,9 +21,10 @@ uint8_t encryptedBin[BIN_SIZE];
 uint8_t bcc[2];
 uint8_t password[PASSWORD_SIZE] = {0, 0, 0, 0};
 
-
 int writePipe[2] = {-1, -1};
 int readPipe[2] = {-1, -1};
+int savedStdin = -1;
+int savedStdout = -1;
 
 #define COMMAND_SIZE 1000
 
@@ -115,6 +117,7 @@ void readTag() {
 }
 
 void replaceUIDInBin() {
+  printf("Replacing UID\n");
   bcc[0] = 0x88 ^ uid[0] ^ uid[1] ^ uid[2];
   bcc[1] = uid[3] ^ uid[4] ^ uid[5] ^ uid[6];
 
@@ -131,6 +134,7 @@ void replaceUIDInBin() {
 }
 
 void replacePassword() {
+  printf("Updating password\n");
   password[0] = 0xAA ^ uid[1] ^ uid[3];
   password[1] = 0x55 ^ uid[2] ^ uid[4];
   password[2] = 0xAA ^ uid[3] ^ uid[5];
@@ -142,6 +146,8 @@ void replacePassword() {
 }
 
 void setDefaults() {
+  printf("Writing magic bytes\n");
+
   decryptedBin[0] = bcc[1];
 
   // All of these are magic values
@@ -157,13 +163,16 @@ void setDefaults() {
 }
 
 void updateForUID() {
+
+  printf("\nUpdating bin for new UID:\n");
+
   // Credit: https://gist.githubusercontent.com/ShoGinn/d27a726296f4370bbff0f9b1a7847b85/raw/aeb425e8b1708e1c61f78c3e861dad03c20ca8ab/Arduino_amiibo_tool.bash
   replaceUIDInBin();
   replacePassword();
   setDefaults();
 }
 
-void encryptBin(const char* keyPath) {
+void redirectIO() {
   if (pipe(writePipe) < 0) {
     fprintf(stderr, "Could not open write pipe\n");
     exit(1);
@@ -174,17 +183,35 @@ void encryptBin(const char* keyPath) {
     exit(1);
   }
 
-  int savedStdin = dup(0);
+  savedStdin = dup(0);
   if (dup2(writePipe[0], 0) < 0) {
     fprintf(stderr, "Could not redirect stdin\n");
     exit(1);
   }
 
-  int savedStdout = dup(1);
+  savedStdout = dup(1);
   if (dup2(readPipe[1], 1) < 0) {
     fprintf(stderr, "Could not redirect stdout\n");
     exit(1);
   }
+}
+
+void resetIO() {
+  if (dup2(savedStdin, 0) < 0) {
+    fprintf(stderr, "Could not reset stdin\n");
+    exit(1);
+  }
+
+  if (dup2(savedStdout, 1) < 0) {
+    fprintf(stderr, "Could not reset stdout\n");
+    exit(1);
+  }
+}
+
+void encryptBin(const char* keyPath) {
+  printf("\nEncrypting bin with amiitool...");
+
+  redirectIO();
 
   int pipeSize;
   if (BIN_SIZE != (pipeSize = write(writePipe[1], decryptedBin, BIN_SIZE))) {
@@ -208,6 +235,10 @@ void encryptBin(const char* keyPath) {
     fprintf(stderr, "Read incorrect size from pipe: %d\n", pipeSize);
     exit(1);
   }
+
+  resetIO();
+
+  printf("Done\n");
 }
 
 void printUsage() {
@@ -226,5 +257,5 @@ int main(int argc, char** argv) {
   readTag();
   updateForUID();
   encryptBin(argv[1]);
-  writeBuffer("test.bin", decryptedBin, BIN_SIZE);
+  writeBuffer("test.bin", encryptedBin, BIN_SIZE);
 }
