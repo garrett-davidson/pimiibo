@@ -1,7 +1,7 @@
 all: pimiibo amiitool
 
-pimiibo: test.c
-	gcc test.c -o pimiibo -lnfc
+pimiibo: pimiibo.c
+	gcc pimiibo.c -o pimiibo -lnfc
 
 amiitool:
 	@$(MAKE) -C amiitool
