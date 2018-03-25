@@ -1,7 +1,11 @@
-all: pimiibo amiitool
+all: pimiibo amiitoolsubmodule
 
 pimiibo: pimiibo.c
 	gcc pimiibo.c -o pimiibo -lnfc
 
-amiitool:
-	@$(MAKE) -C amiitool
+amiitoolsubmodule:
+	cd amiitool && $(MAKE) amiitool
+
+clean:
+	rm pimiibo
+	cd amiitool && $(MAKE) clean
