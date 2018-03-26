@@ -61,6 +61,7 @@ void writeBuffer(const char* path, uint8_t *buffer, size_t size) {
     fprintf(stderr, "Could not write to file\n");
     exit(1);
   }
+  fclose(file);
 }
 
 void initializeNFC() {
@@ -97,7 +98,7 @@ void readFileIntoBuffer(const char *path, uint8_t *buffer, size_t size) {
     fprintf(stderr, "Read incorrect number of bytes from file: %s\n", path);
     exit(1);
   }
-
+  fclose(file);
 }
 
 void redirectIO() {
