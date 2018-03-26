@@ -5,11 +5,11 @@ This is a tool for spoofing amiibo NFC tags using a Raspberry Pi and PN532 NFC r
 ## Hardware
 This project requires 3 main components: a Pi, a PN532 NFC reader/writer, and NTAG 215 NFC tags. You *must* use NTAG 215 tags. Any other tag type (e.g NTAG 210, 216, etc.) **will not work**. Anything meeting these requirements should be fine, but here is my setup for reference:
 
-1. Raspberry Pi Zero W
+1. Raspberry Pi Zero W ($10). A Pi Zero (not W) would cost $5.
 
-2. Elechouse PN532 NFC Module v3: [Amazon](https://smile.amazon.com/gp/product/B01NBSW0NU/).
+2. Elechouse PN532 NFC Module v3 ($10): [Amazon](https://smile.amazon.com/gp/product/B01NBSW0NU/).
 
-3. NFC NTAG 215 tags. I've personally tested with [these](https://smile.amazon.com/gp/product/B078WMQPCZ/) and [these](https://smile.amazon.com/gp/product/B0759W25TL/).
+3. NTAG 215 tags. I've personally tested with [these](https://smile.amazon.com/gp/product/B078WMQPCZ/) ($10 for 11) and [these](https://smile.amazon.com/gp/product/B0759W25TL/) ($28 for 60).
 
 ## Software setup
 
