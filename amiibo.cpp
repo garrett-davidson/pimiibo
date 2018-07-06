@@ -1,9 +1,13 @@
 #include "amiibo.h"
+#include "amiitool.h"
+
 #include <stdio.h>
 
 Amiibo::Amiibo(const char* filePath) {
   uint8_t encryptedBuffer[AMIIBO_SIZE];
   readFileIntoBuffer(filePath, encryptedBuffer, AMIIBO_SIZE);
+
+  Amiitool::shared()->decryptBuffer(encryptedBuffer, buffer);
 }
 
 void readFileIntoBuffer(const char *filePath, uint8_t *buffer, size_t size) {
