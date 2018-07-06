@@ -9,7 +9,6 @@ nfc_context *context;
 nfc_device *pnd;
 
 #define UID_SIZE 7
-#define BIN_SIZE 540
 #define PASSWORD_SIZE 4
 
 #define UID_OFFSET 468
@@ -85,20 +84,6 @@ void initializeNFC() {
   }
 
   printf("NFC reader: opened\n");
-}
-
-void readFileIntoBuffer(const char *path, uint8_t *buffer, size_t size) {
-  FILE *file = fopen(path, "r");
-  if (!file) {
-    fprintf(stderr, "Could not open %s\n", path);
-    exit(1);
-  }
-
-  if (size != fread(buffer, 1, size, file)) {
-    fprintf(stderr, "Read incorrect number of bytes from file: %s\n", path);
-    exit(1);
-  }
-  fclose(file);
 }
 
 void redirectIO() {
