@@ -7,6 +7,9 @@
 
 #define COMMAND_SIZE 1000
 
+Amiitool *Amiitool::_shared = NULL;
+const char *Amiitool::_keyPath = NULL;
+
 Amiitool *Amiitool::shared() {
   if (!_shared) { _shared = new Amiitool(); }
 
@@ -98,4 +101,13 @@ void Amiitool::resetIO() {
     fprintf(stderr, "Could not reset stdout\n");
     exit(1);
   }
+}
+
+void Amiitool::printHex(const uint8_t *buffer, const size_t size) {
+  size_t i;
+
+  for (i = 0; i < size; i++) {
+    printf("%02x  ", buffer[i]);
+  }
+  printf("\n");
 }

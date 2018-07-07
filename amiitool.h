@@ -9,6 +9,8 @@ public:
   static Amiitool *shared();
   static void setKeyPath(const char *keyPath);
 
+  void printHex(const uint8_t *buffer, const size_t size);
+
 private:
   int writePipe[2];
   int readPipe[2];
