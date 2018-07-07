@@ -35,15 +35,6 @@ void writeBuffer(const char* path, uint8_t *buffer, size_t size) {
   fclose(file);
 }
 
-void setDefaults() {
-}
-
-void encryptBin(const char* keyPath) {
-  printf("Encrypting\n");
-  pipeToAmiitool("-e", keyPath, decryptedBin, encryptedBin);
-  printf("Encrypted\n\n");
-}
-
 void writePage(uint8_t page, const uint8_t *pageData) {
   printf("Writing to %d: %02x %02x %02x %02x...",
          page, pageData[0], pageData[1], pageData[2], pageData[3]);

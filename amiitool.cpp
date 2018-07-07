@@ -37,6 +37,11 @@ int Amiitool::decryptBuffer(uint8_t *encryptedBuffer, uint8_t *decryptedBuffer) 
   return pipeToAmiitool("-d", Amiitool::_keyPath, encryptedBuffer, decryptedBuffer);
 }
 
+int Amiitool::encryptBuffer(uint8_t *encryptedBuffer, uint8_t *decryptedBuffer) {
+  printf("Encrypting\n");
+  return pipeToAmiitool("-e", Amiitool::_keyPath, decryptedBuffer, encryptedBuffer);
+}
+
 int Amiitool::pipeToAmiitool(const char *args, const char* keyPath, uint8_t *inputBuffer, uint8_t *outputBuffer) {
   printf("Sending bin to amiitool...");
 
