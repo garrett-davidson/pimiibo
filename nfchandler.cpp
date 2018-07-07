@@ -1,5 +1,6 @@
 #include "nfchandler.h"
 #include "amiitool.h"
+#include "amiibo.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,6 +58,14 @@ void NFCHandler::readTagUUID(uint8_t uuidBuffer[]) {
       uuidBuffer[i] = target->nti.nai.abtUid[i];
     }
   }
+}
+
+void NFCHandler::writeAmiibo(Amiibo *amiibo) {
+    uint8_t uuid[UUID_SIZE];
+    readTagUUID(uuid);
+
+    amiibo->setUUID(uuid);
+    writeBuffer(amiibo->encryptedBuffer);
 }
 
 void NFCHandler::writeBuffer(const uint8_t *buffer) {
