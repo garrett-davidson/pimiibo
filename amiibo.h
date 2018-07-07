@@ -6,7 +6,9 @@ class Amiibo {
 public:
   Amiibo(const char *filePath);
 
-  void updateForUUID(const uint8_t uuid[]);
+  void setUUID(const uint8_t uuid[]);
+
+  uint8_t encryptedBuffer[AMIIBO_SIZE];
 
 private:
   uint8_t buffer[AMIIBO_SIZE];

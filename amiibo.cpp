@@ -8,19 +8,19 @@
 #define PASSWORD_SIZE 4
 
 Amiibo::Amiibo(const char* filePath) {
-  uint8_t encryptedBuffer[AMIIBO_SIZE];
   readFileIntoBuffer(filePath, encryptedBuffer, AMIIBO_SIZE);
 
   Amiitool::shared()->decryptBuffer(encryptedBuffer, buffer);
 }
 
-void Amiibo::updateForUUID(const uint8_t *uuid) {
+void Amiibo::setUUID(const uint8_t *uuid) {
   printf("\nUpdating bin for new UID:\n");
 
   // Credit: https://gist.githubusercontent.com/ShoGinn/d27a726296f4370bbff0f9b1a7847b85/raw/aeb425e8b1708e1c61f78c3e861dad03c20ca8ab/Arduino_amiibo_tool.bash
   replaceWithUUID(uuid);
   replacePassword(uuid);
   setDefaults(uuid);
+  Amiitool::shared()->encryptBuffer(encryptedBuffer, buffer);
 
   printf("Finished updating bin\n\n");
 }
