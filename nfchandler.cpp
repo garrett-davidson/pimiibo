@@ -44,10 +44,10 @@ NFCHandler::NFCHandler() {
 void NFCHandler::readTagUUID(uint8_t uuidBuffer[]) {
   printf("***Scan tag***\n");
 
-  if (nfc_initiator_select_passive_target(device, nmMifare, NULL, 0, target) > 0) {
+  if (nfc_initiator_select_passive_target(device, nmMifare, NULL, 0, &target) > 0) {
     printf("Read UID: ");
-    int uidSize = target->nti.nai.szUidLen;
-    Amiitool::shared()->printHex(target->nti.nai.abtUid, uidSize);
+    int uidSize = target.nti.nai.szUidLen;
+    Amiitool::shared()->printHex(target.nti.nai.abtUid, uidSize);
 
     if (UUID_SIZE != uidSize) {
       fprintf(stderr, "Read wrong size UID\n");
@@ -55,7 +55,7 @@ void NFCHandler::readTagUUID(uint8_t uuidBuffer[]) {
     }
 
     for (int i = 0; i < UUID_SIZE; i++) {
-      uuidBuffer[i] = target->nti.nai.abtUid[i];
+      uuidBuffer[i] = target.nti.nai.abtUid[i];
     }
   }
 }

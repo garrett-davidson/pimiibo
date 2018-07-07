@@ -12,7 +12,7 @@ public:
   void writeAmiibo(Amiibo *amiibo);
 
 private:
-  nfc_target *target;
+  nfc_target target;
   nfc_context *context;
   nfc_device *device;
 
