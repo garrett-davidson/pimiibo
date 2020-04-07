@@ -1,6 +1,7 @@
 #define AMIIBO_SIZE 540
 
-#include <stdlib.h>
+#include <cstdlib>
+#include <cstdint>
 
 class Amiibo {
 public:
