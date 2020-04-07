@@ -1,4 +1,5 @@
-#include <stdlib.h>
+#include <cstdlib>
+#include <cstdint>
 
 class Amiitool {
 public:
